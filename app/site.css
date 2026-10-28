@@ -1,4 +1,8 @@
 /* Ajustements propres au site Next.js (le design de base vient de globals.css) */
+/* Supprime la marge par défaut du navigateur (8 px), visible en thème clair autour des bandeaux */
+html,body{margin:0;padding:0}
+html{background:var(--bg)}
+img{max-width:100%}
 .site-main{display:block}
 .skip{position:absolute;left:-9999px;top:0;z-index:100;background:var(--gold);color:#0B1F45;padding:.6rem 1rem;font-weight:700}
 .skip:focus{left:1rem;top:1rem}
