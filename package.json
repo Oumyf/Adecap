@@ -1,0 +1,40 @@
+{
+  "name": "adecap-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site institutionnel ADECAP Entertainment : compétitions, actualités, talents à suivre, inscriptions et back-office.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p ${PORT:-3000}",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node db/migrate.mjs",
+    "db:seed": "tsx db/seed.ts",
+    "render:build": "npm ci --include=dev && npm run build",
+    "typecheck": "tsc --noEmit",
+    "render:start": "node db/migrate.mjs && tsx db/seed.ts && next start -p ${PORT:-10000}"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.4",
+    "jose": "^6.2.13",
+    "next": "^16.4.3",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
