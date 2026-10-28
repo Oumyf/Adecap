@@ -53,3 +53,5 @@ export function compTitle(c: { name: string; edition: string }) {
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_RE = /^\+?[\d\s.-]{8,}$/;
+
+export const ytThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;

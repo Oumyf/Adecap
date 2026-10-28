@@ -38,14 +38,6 @@ export const PROGRAMS = [
   { slug: "entreprises", t: "Compétitions d’entreprises · CFL", c: "Partenariats", ben: "16 entreprises", zone: "Dakar", st: "En préparation", ex: "La CFL ouvre les compétitions ADECAP au monde de l’entreprise en avril 2027.", acts: ["Inscription des entreprises", "Calendrier de la compétition", "Événement de clôture"], res: "16 entreprises prévues." },
 ];
 
-export const MEDIA = [
-  { t: "L’intensité du terrain", al: "Compétitions", img: "/images/match.jpg", wide: true },
-  { t: "Les tribunes en fête", al: "Compétitions", img: "/images/tribunes.jpg" },
-  { t: "Des moments qui comptent", al: "Partenariats", img: "/images/ceremonie.jpg" },
-  { t: "Talent à suivre : Amadou Diop", al: "Talents à suivre", img: "/images/affiche-amadou-diop.jpg", tall: true },
-  { t: "Amadou Diop, milieu de terrain", al: "Talents à suivre", img: "/images/amadou-diop-portrait.jpg" },
-];
-
 export const TEAM = ["Direction générale", "Communication", "Pôle sport", "Pôle culture", "Pôle jeunesse", "ADECAP Studio"];
 
 export const REGIONS = ["Dakar", "Diourbel", "Fatick", "Kaffrine", "Kaolack", "Kédougou", "Kolda", "Louga", "Matam", "Saint-Louis", "Sédhiou", "Tambacounda", "Thiès", "Ziguinchor"];

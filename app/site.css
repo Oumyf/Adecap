@@ -158,3 +158,20 @@ a.sel{color:inherit;text-decoration:none}
 .adm .logo{color:#fff}
 
 .adm .bar{flex-direction:row;height:auto;justify-content:flex-start;align-items:center;min-width:0}
+/* Médiathèque (administration) */
+.adm-albums{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+.adm-album{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;display:grid}
+.adm-album:hover{border-color:var(--gold)}
+.adm-album img,.adm-album .empty-cover{width:100%;aspect-ratio:16/10;object-fit:cover;display:grid;place-items:center;background:var(--sunk);color:var(--muted);font-size:.85rem}
+.adm-album div{padding:.8rem 1rem;display:grid;gap:.2rem}
+.adm-album b{color:var(--ink)}
+.adm-album small{color:var(--muted)}
+.adm-media{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
+.adm-media-item{border:1px solid var(--line);border-radius:12px;padding:.6rem;display:grid;gap:.5rem;position:relative}
+.adm-media-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--sunk)}
+.adm-vid{position:absolute;top:1rem;left:1rem}
+/* Médiathèque (site) : vidéos */
+.m .play-ic{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.m .play-ic i{width:58px;height:58px;border-radius:50%;background:rgba(229,166,0,.92);display:grid;place-items:center}
+.lb .frame iframe{width:100%;height:100%;border:0;display:block}
+.album-desc{margin:-1rem 0 1.6rem;color:var(--muted)}

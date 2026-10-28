@@ -30,6 +30,7 @@ Site institutionnel d’ADECAP Entertainment : compétitions 2023-2027, actualit
 - **Compétitions :** mise à jour rapide du statut, de l’avancement et du vainqueur depuis la liste, ou fiche complète.
 - **Inscriptions :** validation des établissements, liste des élèves et export CSV compatible Excel.
 - **Demandes et abonnés :** demandes de contact (à traiter / traitée), abonnés à l’agenda, alertes de compétitions, et export CSV de chaque liste.
+- **Médiathèque :** albums, envoi de 10 photos à la fois, vidéos YouTube par simple lien, légendes et image de couverture.
 - **Journal d’activité :** trace chaque opération.
 
 Les images téléversées sont stockées dans la base de données, pour ne pas être perdues aux redéploiements.
@@ -84,7 +85,11 @@ lib/               accès aux données, authentification, textes institutionnels
 public/images/     logo, photos ADECAP Studio, affiche et photos d’Amadou Diop
 ```
 
-Les coordonnées, réseaux sociaux, programmes et la médiathèque se modifient dans `lib/site.ts`.
+Les coordonnées, réseaux sociaux et programmes se modifient dans `lib/site.ts`.
+
+## Contenus de l’équipe
+
+L’équipe dépose photos et affiches dans le dossier Google Drive « ADECAP – Site » (sous-dossiers Compétitions, Talents à suivre, Médiathèque, Partenaires et logos), puis les ajoute au site depuis l’administration. Le site garde sa propre copie de chaque image.
 
 ## À compléter par ADECAP
 

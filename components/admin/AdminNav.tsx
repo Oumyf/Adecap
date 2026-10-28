@@ -9,7 +9,7 @@ export function AdminNav({ role, counts }: { role: Role; counts: { messages: num
   const items = [
     { href: "/admin", label: "Tableau de bord" },
     { href: "/admin/articles", label: "Actualités" },
-    ...(role !== "CONTRIBUTOR" ? [{ href: "/admin/talents", label: "Talents à suivre" }, { href: "/admin/competitions", label: "Compétitions" }] : []),
+    ...(role !== "CONTRIBUTOR" ? [{ href: "/admin/talents", label: "Talents à suivre" }, { href: "/admin/competitions", label: "Compétitions" }, { href: "/admin/mediatheque", label: "Médiathèque" }] : []),
     ...(role !== "CONTRIBUTOR" ? [{ href: "/admin/inscriptions", label: "Inscriptions", n: counts.schools }] : []),
     { href: "/admin/demandes", label: "Demandes reçues", n: counts.messages },
     ...(role === "ADMIN" ? [{ href: "/admin/utilisateurs", label: "Utilisateurs" }] : []),

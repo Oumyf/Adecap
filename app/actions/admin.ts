@@ -315,3 +315,101 @@ export async function changePassword(_: AdminState, f: FormData): Promise<AdminS
   await log(me, "a changé son mot de passe");
   return { ok: true, message: "Mot de passe mis à jour." };
 }
+
+/* ---------------- Médiathèque ---------------- */
+/** Extrait l’identifiant d’une vidéo YouTube depuis un lien (watch, youtu.be, shorts, embed). */
+function youtubeId(url: string) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : /^[A-Za-z0-9_-]{11}$/.test(url) ? url : null;
+}
+
+export async function saveAlbum(_: AdminState, f: FormData): Promise<AdminState> {
+  const u = await requireUser(["ADMIN", "EDITOR"]);
+  const id = s(f, "id", 60), title = s(f, "title", 120), description = s(f, "description", 400) || null;
+  if (title.length < 2) return { errors: { title: "Donnez un titre à l’album." } };
+  if (id) {
+    await db.update(schema.mediaAlbums).set({ title, description, sortOrder: Number(s(f, "sortOrder", 3)) || 0 }).where(eq(schema.mediaAlbums.id, id));
+    await log(u, `a modifié l’album « ${title} »`);
+    refresh();
+    return { ok: true, message: "Album enregistré." };
+  }
+  const root = slugify(title) || "album";
+  let slug = root;
+  for (let i = 2; await db.query.mediaAlbums.findFirst({ where: eq(schema.mediaAlbums.slug, slug) }); i++) slug = `${root}-${i}`;
+  const [al] = await db.insert(schema.mediaAlbums).values({ title, description, slug }).returning();
+  await log(u, `a créé l’album « ${title} »`);
+  refresh();
+  redirect(`/admin/mediatheque/${al.id}`);
+}
+
+export async function addMedia(_: AdminState, f: FormData): Promise<AdminState> {
+  const u = await requireUser(["ADMIN", "EDITOR"]);
+  const albumId = s(f, "albumId", 60);
+  const album = await db.query.mediaAlbums.findFirst({ where: eq(schema.mediaAlbums.id, albumId) });
+  if (!album) return { message: "Album introuvable." };
+  const caption = s(f, "caption", 160);
+  const last = await db.query.mediaItems.findMany({ where: eq(schema.mediaItems.albumId, albumId) });
+  let order = last.reduce((m, x) => Math.max(m, x.sortOrder), -1) + 1;
+  const files = f.getAll("photos").filter((x): x is File => x instanceof File && x.size > 0).slice(0, 10);
+  const video = s(f, "video", 300);
+  if (!files.length && !video) return { message: "Choisissez des photos ou collez un lien YouTube." };
+  const errors: string[] = [];
+  let added = 0;
+  for (const file of files) {
+    if (file.size > 5 * 1024 * 1024) { errors.push(`${file.name} : 5 Mo maximum.`); continue; }
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) { errors.push(`${file.name} : format non accepté.`); continue; }
+    const [img] = await db.insert(schema.images).values({ filename: file.name.slice(0, 120), mimeType: file.type, size: file.size, data: Buffer.from(await file.arrayBuffer()) }).returning({ id: schema.images.id });
+    await db.insert(schema.mediaItems).values({ albumId, kind: "image", url: `/api/images/${img.id}`, caption: caption || file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").slice(0, 160), sortOrder: order++ });
+    added++;
+  }
+  if (video) {
+    const vid = youtubeId(video);
+    if (!vid) errors.push("Lien YouTube non reconnu.");
+    else {
+      await db.insert(schema.mediaItems).values({ albumId, kind: "video", url: vid, caption: caption || "Vidéo", sortOrder: order++ });
+      added++;
+    }
+  }
+  if (added) {
+    await log(u, `a ajouté ${added} média${added > 1 ? "s" : ""} à l’album « ${album.title} »`);
+    refresh();
+  }
+  return { ok: added > 0, message: [added ? `${added} média${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""}.` : "", ...errors].filter(Boolean).join(" ") };
+}
+
+export async function updateMediaCaption(f: FormData) {
+  const u = await requireUser(["ADMIN", "EDITOR"]);
+  const id = s(f, "id", 60);
+  await db.update(schema.mediaItems).set({ caption: s(f, "caption", 160) }).where(eq(schema.mediaItems.id, id));
+  await log(u, "a modifié une légende de la médiathèque");
+  refresh();
+}
+
+export async function setAlbumCover(id: string) {
+  const u = await requireUser(["ADMIN", "EDITOR"]);
+  const item = await db.query.mediaItems.findFirst({ where: eq(schema.mediaItems.id, id) });
+  if (!item) return;
+  const items = await db.query.mediaItems.findMany({ where: eq(schema.mediaItems.albumId, item.albumId) });
+  const min = items.reduce((m, x) => Math.min(m, x.sortOrder), 0);
+  await db.update(schema.mediaItems).set({ sortOrder: min - 1 }).where(eq(schema.mediaItems.id, id));
+  await log(u, "a changé la première image d’un album");
+  refresh();
+}
+
+export async function deleteMedia(id: string) {
+  const u = await requireUser(["ADMIN", "EDITOR"]);
+  const [m] = await db.delete(schema.mediaItems).where(eq(schema.mediaItems.id, id)).returning();
+  if (m?.url.startsWith("/api/images/")) await db.delete(schema.images).where(eq(schema.images.id, m.url.slice(12)));
+  if (m) await log(u, `a retiré « ${m.caption} » de la médiathèque`);
+  refresh();
+}
+
+export async function deleteAlbum(id: string) {
+  const u = await requireUser(["ADMIN"]);
+  const items = await db.query.mediaItems.findMany({ where: eq(schema.mediaItems.albumId, id) });
+  const [al] = await db.delete(schema.mediaAlbums).where(eq(schema.mediaAlbums.id, id)).returning();
+  for (const m of items) if (m.url.startsWith("/api/images/")) await db.delete(schema.images).where(eq(schema.images.id, m.url.slice(12)));
+  if (al) await log(u, `a supprimé l’album « ${al.title} »`);
+  refresh();
+  redirect("/admin/mediatheque");
+}

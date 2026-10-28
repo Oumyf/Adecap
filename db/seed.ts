@@ -76,6 +76,20 @@ async function main() {
     console.log("Talent à suivre créé : Amadou Diop.");
   }
 
+  const [{ n: nAlb }] = await db.select({ n: count() }).from(s.mediaAlbums);
+  if (nAlb === 0) {
+    const albums: [string, string, string, [string, string][]][] = [
+      ["competitions", "Compétitions", "Matchs, tribunes et temps forts des compétitions ADECAP.", [["/images/match.jpg", "L’intensité du terrain"], ["/images/tribunes.jpg", "Les tribunes en fête"]]],
+      ["talents-a-suivre", "Talents à suivre", "Affiches et portraits des joueurs révélés par nos compétitions.", [["/images/affiche-amadou-diop.jpg", "Talent à suivre : Amadou Diop"], ["/images/amadou-diop-portrait.jpg", "Amadou Diop, milieu de terrain"]]],
+      ["partenariats", "Partenariats", "Cérémonies et moments partagés avec nos partenaires.", [["/images/ceremonie.jpg", "Des moments qui comptent"]]],
+    ];
+    for (const [i, [slug, title, description, items]] of albums.entries()) {
+      const [al] = await db.insert(s.mediaAlbums).values({ slug, title, description, sortOrder: i }).returning();
+      await db.insert(s.mediaItems).values(items.map(([url, caption], k) => ({ albumId: al.id, kind: "image" as const, url, caption, sortOrder: k })));
+    }
+    console.log("Médiathèque initialisée.");
+  }
+
   for (const a of ARTICLES) {
     const exists = await db.query.articles.findFirst({ where: eq(s.articles.slug, a.slug) });
     if (!exists) await db.insert(s.articles).values({ ...a, status: "PUBLISHED", publishedAt: new Date(a.publishedAt + "T10:00:00Z") });

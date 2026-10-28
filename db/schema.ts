@@ -174,6 +174,30 @@ export const subscribers = pgTable("subscribers", {
   createdAt: createdAt(),
 });
 
+export const mediaAlbums = pgTable("media_albums", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: createdAt(),
+});
+
+export const mediaItems = pgTable(
+  "media_items",
+  {
+    id: id(),
+    albumId: text("album_id").notNull().references(() => mediaAlbums.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"image" | "video">().notNull().default("image"),
+    /** Image : URL de l’image. Vidéo : identifiant YouTube. */
+    url: text("url").notNull(),
+    caption: text("caption").notNull().default(""),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("media_items_album_idx").on(t.albumId, t.sortOrder)],
+);
+
 export const activityLogs = pgTable("activity_logs", {
   id: id(),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
@@ -188,7 +212,11 @@ export const studentsRelations = relations(students, ({ one }) => ({ school: one
 export const schoolsRelations = relations(schools, ({ many }) => ({ students: many(students) }));
 export const alertsRelations = relations(competitionAlerts, ({ one }) => ({ competition: one(competitions, { fields: [competitionAlerts.competitionId], references: [competitions.id] }) }));
 
+export const mediaAlbumsRelations = relations(mediaAlbums, ({ many }) => ({ items: many(mediaItems) }));
+export const mediaItemsRelations = relations(mediaItems, ({ one }) => ({ album: one(mediaAlbums, { fields: [mediaItems.albumId], references: [mediaAlbums.id] }) }));
+
 export type Article = typeof articles.$inferSelect;
+export type MediaItem = typeof mediaItems.$inferSelect;
 export type Talent = typeof talents.$inferSelect;
 export type Competition = typeof competitions.$inferSelect;
 export type School = typeof schools.$inferSelect;
