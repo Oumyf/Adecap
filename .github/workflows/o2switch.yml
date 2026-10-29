@@ -1,0 +1,51 @@
+# Construit le paquet o2switch à chaque mise à jour de la branche main,
+# puis l’envoie par FTP si les accès FTP sont enregistrés dans les secrets du dépôt.
+#
+# Secrets à créer dans GitHub (Settings > Secrets and variables > Actions) :
+#   O2SWITCH_FTP_SERVER    ex. ftp.mondomaine.fr ou le nom du serveur o2switch
+#   O2SWITCH_FTP_USERNAME  compte FTP créé dans cPanel (limité au dossier de l’application)
+#   O2SWITCH_FTP_PASSWORD  mot de passe de ce compte FTP
+#   O2SWITCH_FTP_DIR       dossier de l’application vu par ce compte FTP, terminé par / (ex. ./ )
+# Sans ces secrets, le paquet reste téléchargeable dans l’onglet Actions (artefact « adecap-o2switch »).
+name: Paquet o2switch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: o2switch
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.O2SWITCH_FTP_SERVER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:o2switch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adecap-o2switch
+          path: dist/adecap-o2switch.zip
+          retention-days: 14
+      - name: Envoi sur o2switch (FTP)
+        if: env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.O2SWITCH_FTP_SERVER }}
+          username: ${{ secrets.O2SWITCH_FTP_USERNAME }}
+          password: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: dist/o2switch/
+          server-dir: ${{ secrets.O2SWITCH_FTP_DIR }}
+          exclude: |
+            **/.env
+            .env

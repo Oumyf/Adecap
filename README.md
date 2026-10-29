@@ -3,7 +3,8 @@
 Site institutionnel d’ADECAP Entertainment : compétitions 2023-2027, actualités et talents à suivre, inscriptions des établissements et des étudiants, formulaire de contact et back-office pour l’équipe.
 
 - **Technologies :** Next.js 16 (App Router), React 19, TypeScript, PostgreSQL, Drizzle ORM.
-- **Hébergement prévu :** Render (fichier `render.yaml` fourni).
+- **Hébergement :** Render (fichier `render.yaml`) ou o2switch en cPanel, voir [DEPLOIEMENT-O2SWITCH.md](DEPLOIEMENT-O2SWITCH.md).
+- **Médias :** dans la base de données par défaut, ou sur un stockage cloud compatible S3 (Cloudflare R2 conseillé) dès que les variables `S3_*` sont définies.
 
 ## Ce que fait le site
 
@@ -33,7 +34,7 @@ Site institutionnel d’ADECAP Entertainment : compétitions 2023-2027, actualit
 - **Médiathèque :** albums, envoi de 10 photos à la fois, vidéos YouTube par simple lien, légendes et image de couverture.
 - **Journal d’activité :** trace chaque opération.
 
-Les images téléversées sont stockées dans la base de données, pour ne pas être perdues aux redéploiements.
+Les images téléversées vont sur le stockage cloud s’il est configuré, sinon dans la base de données ; dans les deux cas elles survivent aux redéploiements. `npm run db:images-to-cloud` transfère les images de la base vers le cloud ; `npm run db:export` / `db:import` transfèrent toutes les données d’une base à une autre.
 
 ## Lancer le site en local
 

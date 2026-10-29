@@ -12,12 +12,17 @@
     "db:seed": "tsx db/seed.ts",
     "render:build": "npm ci --include=dev && npm run build",
     "typecheck": "tsc --noEmit",
-    "render:start": "node db/migrate.mjs && tsx db/seed.ts && next start -p ${PORT:-10000}"
+    "render:start": "node db/migrate.mjs && tsx db/seed.ts && next start -p ${PORT:-10000}",
+    "db:images-to-cloud": "tsx db/images-to-cloud.ts",
+    "build:o2switch": "node scripts/build-o2switch.mjs",
+    "db:export": "tsx db/data-transfer.ts export",
+    "db:import": "tsx db/data-transfer.ts import"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1159.0",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.4",
     "jose": "^6.2.13",
@@ -34,6 +39,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }

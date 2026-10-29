@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Paquet autonome pour l’hébergement cPanel (o2switch) : activé par scripts/build-o2switch.mjs
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   poweredByHeader: false,
   serverExternalPackages: ["pg"],
   experimental: { serverActions: { bodySizeLimit: "30mb" } },

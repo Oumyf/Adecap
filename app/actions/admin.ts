@@ -8,6 +8,7 @@ import { can, createSession, destroySession, getUser, log, requireUser, type Ses
 import { db, schema } from "@/lib/db";
 import { CATEGORIES, EMAIL_RE, slugify } from "@/lib/format";
 import type { CompetitionStatus, ContentStatus, Role, TalentAttribute } from "@/db/schema";
+import { removeImage, storeUpload } from "@/lib/storage";
 
 export type AdminState = { ok?: boolean; message?: string; errors?: Record<string, string> };
 
@@ -24,17 +25,12 @@ async function uniqueSlug(table: typeof schema.articles | typeof schema.talents 
   return `${root}-${Date.now().toString(36)}`;
 }
 
-/** Enregistre une image envoyée depuis un formulaire et renvoie son URL publique. */
-async function saveImage(f: FormData, key: string): Promise<string | null | "trop-lourd" | "format"> {
+/** Enregistre une image envoyée depuis un formulaire (cloud ou base) et renvoie son URL publique. */
+async function saveImage(f: FormData, key: string, folder: string): Promise<string | null | "trop-lourd" | "format"> {
   const file = f.get(key);
   if (!(file instanceof File) || file.size === 0) return null;
-  if (file.size > 5 * 1024 * 1024) return "trop-lourd";
-  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) return "format";
-  const [img] = await db
-    .insert(schema.images)
-    .values({ filename: file.name.slice(0, 120), mimeType: file.type, size: file.size, data: Buffer.from(await file.arrayBuffer()) })
-    .returning({ id: schema.images.id });
-  return `/api/images/${img.id}`;
+  const r = await storeUpload(file, folder);
+  return "url" in r ? r.url : r.error;
 }
 
 function imgError(r: string | null, label: string) {
@@ -86,7 +82,7 @@ export async function saveArticle(_: AdminState, f: FormData): Promise<AdminStat
   if (body.length < 20) errors.body = "Le texte doit contenir au moins 20 caractères.";
   if (isNaN(publishedAt.getTime())) errors.publishedAt = "Date invalide.";
   if (status === "SCHEDULED" && publishedAt <= new Date()) errors.publishedAt = "Pour programmer, choisissez une date future.";
-  const cover = await saveImage(f, "cover");
+  const cover = await saveImage(f, "cover", "actualites");
   const ie = imgError(cover, "Image");
   if (ie) errors.cover = ie;
   if (Object.keys(errors).length) return { errors };
@@ -105,6 +101,7 @@ export async function saveArticle(_: AdminState, f: FormData): Promise<AdminStat
   };
   if (existing) {
     await db.update(schema.articles).set(data).where(eq(schema.articles.id, existing.id));
+    if (existing.coverUrl && existing.coverUrl !== data.coverUrl) await removeImage(existing.coverUrl);
     await log(u, `a modifié « ${title} »`);
   } else {
     await db.insert(schema.articles).values({ ...data, slug: await uniqueSlug(schema.articles, title) });
@@ -128,7 +125,10 @@ export async function deleteArticle(id: string) {
   const u = await requireUser();
   if (!can.delete(u.role)) return;
   const [a] = await db.delete(schema.articles).where(eq(schema.articles.id, id)).returning();
-  if (a) await log(u, `a supprimé « ${a.title} »`);
+  if (a) {
+    await removeImage(a.coverUrl);
+    await log(u, `a supprimé « ${a.title} »`);
+  }
   refresh();
 }
 
@@ -153,7 +153,7 @@ export async function saveTalent(_: AdminState, f: FormData): Promise<AdminState
   if (!v.goal) errors.goal = "Objectif requis.";
   if (v.hook.length < 10) errors.hook = "Accroche requise (10 caractères minimum).";
   const existing = id ? await db.query.talents.findFirst({ where: eq(schema.talents.id, id) }) : null;
-  const photo = await saveImage(f, "photo"), thumb = await saveImage(f, "thumb"), poster = await saveImage(f, "poster");
+  const photo = await saveImage(f, "photo", "talents"), thumb = await saveImage(f, "thumb", "talents"), poster = await saveImage(f, "poster", "talents");
   for (const [r, k, l] of [[photo, "photo", "Photo"], [thumb, "thumb", "Vignette"], [poster, "poster", "Affiche"]] as const) {
     const e = imgError(r, l);
     if (e) errors[k] = e;
@@ -165,6 +165,7 @@ export async function saveTalent(_: AdminState, f: FormData): Promise<AdminState
   let talentId = id;
   if (existing) {
     await db.update(schema.talents).set(data).where(eq(schema.talents.id, id));
+    for (const k of ["photoUrl", "thumbUrl", "posterUrl"] as const) if (existing[k] && existing[k] !== data[k]) await removeImage(existing[k]);
     await log(u, `a modifié le talent ${v.firstName} ${v.lastName}`);
   } else {
     const [t] = await db.insert(schema.talents).values({ ...data, slug: await uniqueSlug(schema.talents, `${v.firstName} ${v.lastName}`) }).returning();
@@ -180,7 +181,10 @@ export async function saveTalent(_: AdminState, f: FormData): Promise<AdminState
 export async function deleteTalent(id: string) {
   const u = await requireUser(["ADMIN"]);
   const [t] = await db.delete(schema.talents).where(eq(schema.talents.id, id)).returning();
-  if (t) await log(u, `a supprimé le talent ${t.firstName} ${t.lastName}`);
+  if (t) {
+    for (const url of [t.photoUrl, t.thumbUrl, t.posterUrl]) await removeImage(url);
+    await log(u, `a supprimé le talent ${t.firstName} ${t.lastName}`);
+  }
   refresh();
 }
 
@@ -356,10 +360,9 @@ export async function addMedia(_: AdminState, f: FormData): Promise<AdminState> 
   const errors: string[] = [];
   let added = 0;
   for (const file of files) {
-    if (file.size > 5 * 1024 * 1024) { errors.push(`${file.name} : 5 Mo maximum.`); continue; }
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) { errors.push(`${file.name} : format non accepté.`); continue; }
-    const [img] = await db.insert(schema.images).values({ filename: file.name.slice(0, 120), mimeType: file.type, size: file.size, data: Buffer.from(await file.arrayBuffer()) }).returning({ id: schema.images.id });
-    await db.insert(schema.mediaItems).values({ albumId, kind: "image", url: `/api/images/${img.id}`, caption: caption || file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").slice(0, 160), sortOrder: order++ });
+    const r = await storeUpload(file, "mediatheque");
+    if ("error" in r) { errors.push(`${file.name} : ${r.error === "trop-lourd" ? "5 Mo maximum." : "format non accepté."}`); continue; }
+    await db.insert(schema.mediaItems).values({ albumId, kind: "image", url: r.url, caption: caption || file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").slice(0, 160), sortOrder: order++ });
     added++;
   }
   if (video) {
@@ -399,7 +402,7 @@ export async function setAlbumCover(id: string) {
 export async function deleteMedia(id: string) {
   const u = await requireUser(["ADMIN", "EDITOR"]);
   const [m] = await db.delete(schema.mediaItems).where(eq(schema.mediaItems.id, id)).returning();
-  if (m?.url.startsWith("/api/images/")) await db.delete(schema.images).where(eq(schema.images.id, m.url.slice(12)));
+  if (m?.kind === "image") await removeImage(m.url);
   if (m) await log(u, `a retiré « ${m.caption} » de la médiathèque`);
   refresh();
 }
@@ -408,7 +411,7 @@ export async function deleteAlbum(id: string) {
   const u = await requireUser(["ADMIN"]);
   const items = await db.query.mediaItems.findMany({ where: eq(schema.mediaItems.albumId, id) });
   const [al] = await db.delete(schema.mediaAlbums).where(eq(schema.mediaAlbums.id, id)).returning();
-  for (const m of items) if (m.url.startsWith("/api/images/")) await db.delete(schema.images).where(eq(schema.images.id, m.url.slice(12)));
+  for (const m of items) if (m.kind === "image") await removeImage(m.url);
   if (al) await log(u, `a supprimé l’album « ${al.title} »`);
   refresh();
   redirect("/admin/mediatheque");
